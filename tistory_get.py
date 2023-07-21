@@ -47,7 +47,7 @@ try:
 
 		if absent_post:
 			print('Post ' + str(index) + ' - Not Found')
-			time.sleep(3)
+			time.sleep(3) 
 			continue
 
 		 # Get Title of article
@@ -97,7 +97,10 @@ try:
 				#print(f"data-filename : {fname}")
 			else: # 없으면
 				fname = os.path.basename(img_url)
-				#print(f"img_url : {fname}")
+				if fname == "img.jpg":
+					directory_name = os.path.dirname( img_tag['src'])
+					last_dirname = directory_name.split('/')[-1]
+					fname = last_dirname
 
 			# 이미지 저장 경로 생성			
 			os.makedirs (os.getcwd() + "/tistory/", exist_ok=True)
@@ -113,12 +116,11 @@ try:
 				img_file.write(img_response.content)
 				print(f"이미지 다운로드 완료: {fname}")
 			
+			# img 태그에서 src attribute의 값을 변경
+			img_tag['src'] = img_dir + '/' + fname
 			# img 태그에서 불필요한 srcset 속성 삭제
 			del img_tag['srcset']
 			del img_tag['onerror']
-
-			# img 태그에서 src attribute의 값을 변경
-			img_tag['src'] = img_dir + '/' + fname
 
 		# div 태그 내의 하위 태그에 순차적으로 접근하기
 		# 포스트 다시 작성하기
@@ -127,16 +129,20 @@ try:
 		# 이미지가 없는 포스트의 경우 새로 생성해야 함
 		os.makedirs (os.getcwd() + "/tistory/", exist_ok=True)
 
-		# 포스트 본문 추출
+		img_alt = ""
+
+		# 포스트 본문 추출. p 태그가 있는지 여부 판단함
+		exist_p_tag = 0
 		for tag in article.find_all():
 			if tag.name == "p":
+				exits_p_tag = 1
 				# p tag 다음에 figure 태그가 있으면 이미지의 alt 태그로 처리함
 				sec_tag = tag.find('figure')
 				if sec_tag:  
 					img_alt = sec_tag.text.strip()
 				else:  # 없으면 그냥 컨텐츠 문장
-					img_alt = ""
 					# <br> 태그와 텍스트를 추출하여 리스트로 저장
+					img_alt = ""
 					pcontents = []
 					for element in tag.contents:
 						if element.name == "br":
@@ -150,29 +156,42 @@ try:
 				# 파일명에 ?가 있을경우 경우에 따라 파일저장 시 _로 대체되기 때문에 처리함. 앞에서 이미지파일 저장시에도 파일명에 ?가 있으면 _로 대체하여 저장함
 				contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(tag['src'].replace("?", "_")) + '" alt="' + img_alt + '">\n'
 			elif tag.name == "div":
+				exist_p_tag = 1
 				contents = contents + "<p>" + tag.text.strip() + "</p>\n" 
 			elif tag.name == "h2":
+				exist_p_tag = 1
 				contents = contents + "<h2>" + tag.text.strip() + "</h2>\n"
 			elif tag.name == "h1":
+				exist_p_tag = 1
 				contents = contents + "<h1>" + tag.text.strip() + "</h1>\n"
 			elif tag.name == "h3":
+				exist_p_tag = 1
 				contents = contents + "<h3>" + tag.text.strip() + "</h3>\n"
 			elif tag.name == "h4":
+				exist_p_tag = 1
 				contents = contents + "<h4>" + tag.text.strip() + "</h4>\n"
 			elif tag.name == "pre":
+				exist_p_tag = 1
 				sec_tag = tag.find('code') 
 				if sec_tag: # pre와 code가 연속으로 오는 코드 태그이면 pre 태그를 회색 박스로 표시하도록 처리
 					contents = contents + '<pre style="border:1px;solid:#ccc;padding:10px;background-color:#d9d9d9;"><code>' + tag.text.strip() + "</code></pre>\n"
 				else:
 					contents = contents + "<pre>" + tag.text.strip() + "</pre>"
 			elif tag.name == "ul":  # list 태그 처리
+				exist_p_tag = 1
 				contents = contents + "<ul>\n"
 				li_tags = tag.find_all('li')
 				for li_tag in li_tags:
 					contents = contents + "<li>" + li_tag.text.strip() + "</li>\n"
 				contents = contents + "</ul>\n"
 			elif tag.name == "span":
-				contents = contents + "<p>" + tag.text.strip() + "</p>\n"
+				exist_p_tag = 1
+				if tag.parent.name == "div" or tag.parent.name == "p":
+					contents = contents + "<p>" + tag.text.strip() + "</p>\n"
+				else:
+					print("<span>태그를 발견하였으나 부모가 <div>가 아닙니다.\n")
+		if exist_p_tag == 0:
+			contents = contents + article.text.strip()
 
 		# 포스트를 저장할 html 파일명 생성
 		wfilename = os.getcwd() + "/tistory/" + str(index) + ".html"
