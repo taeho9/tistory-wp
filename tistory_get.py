@@ -132,10 +132,8 @@ try:
 		img_alt = ""
 
 		# 포스트 본문 추출. p 태그가 있는지 여부 판단함
-		exist_p_tag = 0
 		for tag in article.find_all():
 			if tag.name == "p":
-				exits_p_tag = 1
 				# p tag 다음에 figure 태그가 있으면 이미지의 alt 태그로 처리함
 				sec_tag = tag.find('figure')
 				if sec_tag:  
@@ -143,26 +141,16 @@ try:
 				else:  # 없으면 그냥 컨텐츠 문장
 					# <br> 태그와 텍스트를 추출하여 리스트로 저장
 					img_alt = ""
-					pcontents = []
-					for element in tag.contents:
-						if element.name == "br":
-							pcontents.append(str(element))
-						if element.name != "span":
-							pcontents.append(str(element))
-					# 리스트의 요소들을 하나의 문자열로 합침
-					pcontents_with_br = ''.join(pcontents)
-					contents = contents + "<p>" + pcontents_with_br + "</p>\n"
+				if tag.parent.get('class') == ['contents_style']:
+					contents = contents + "<p>" + tag.text.strip() + "</p>\n"
 			elif tag.name == "img":
 				# 파일명에 ?가 있을경우 경우에 따라 파일저장 시 _로 대체되기 때문에 처리함. 앞에서 이미지파일 저장시에도 파일명에 ?가 있으면 _로 대체하여 저장함
 				contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(tag['src'].replace("?", "_")) + '" alt="' + img_alt + '">\n'
 			elif tag.name == "div":
-				exist_p_tag = 1
 				contents = contents + "<p>" + tag.text.strip() + "</p>\n" 
 			elif tag.name == "h2":
-				exist_p_tag = 1
 				contents = contents + "<h2>" + tag.text.strip() + "</h2>\n"
 			elif tag.name == "h1":
-				exist_p_tag = 1
 				contents = contents + "<h1>" + tag.text.strip() + "</h1>\n"
 			elif tag.name == "h3":
 				exist_p_tag = 1
@@ -177,21 +165,15 @@ try:
 					contents = contents + '<pre style="border:1px;solid:#ccc;padding:10px;background-color:#d9d9d9;"><code>' + tag.text.strip() + "</code></pre>\n"
 				else:
 					contents = contents + "<pre>" + tag.text.strip() + "</pre>"
-			elif tag.name == "ul":  # list 태그 처리
+			elif tag.name == "ul":  # list 태그(ul) 처리
 				exist_p_tag = 1
 				contents = contents + "<ul>\n"
 				li_tags = tag.find_all('li')
 				for li_tag in li_tags:
 					contents = contents + "<li>" + li_tag.text.strip() + "</li>\n"
 				contents = contents + "</ul>\n"
-			elif tag.name == "span":
-				exist_p_tag = 1
-				if tag.parent.name == "div" or tag.parent.name == "p":
-					contents = contents + "<p>" + tag.text.strip() + "</p>\n"
-				else:
-					print("<span>태그를 발견하였으나 부모가 <div>가 아닙니다.\n")
-		if exist_p_tag == 0:
-			contents = contents + article.text.strip()
+			elif tag.name == "span" and tag.parent.get('class') == ['contents_style']:
+				contents = contents + "<p>" + tag.text.strip() + "</p>\n"
 
 		# 포스트를 저장할 html 파일명 생성
 		wfilename = os.getcwd() + "/tistory/" + str(index) + ".html"
