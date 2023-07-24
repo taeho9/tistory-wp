@@ -14,7 +14,7 @@ args = sys.argv
 arg_ct = len(args) - 1
 
 if arg_ct != 1:
-	print("\n사용법 : $ python tistory_get.py [시작포스트번호]  [마지막끝포스트번호]\n\n") 
+	print("\n사용법 : $ python tistory_get.py [포스트번호]\n\n") 
 	sys.exit()
 
 base_url = 'cybercafe.tistory.com'

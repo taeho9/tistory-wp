@@ -54,7 +54,7 @@ try:
 		title = page.find('title')
 		category = page.find('a', class_='jb-category-name')
 		wdate = page.find('li', class_='jb-article-information-date')
-		print('Post No : ' + str(index) + ', Title : ' + title.text)
+		print('Post No : ' + str(index) + ', Title : ' + title.text + "  /" + str(index))
 		print('Category : ' + category.text + ', Date : ' + wdate.text.strip())
 		print('WP Slug : /' + str(index))
 
@@ -124,6 +124,7 @@ try:
 			
 			# img 태그에서 src attribute의 값을 변경
 			img_tag['src'] = img_dir + '/' + fname
+			
 			# img 태그에서 불필요한 srcset 속성 삭제
 			del img_tag['srcset']
 			del img_tag['onerror']
@@ -141,16 +142,18 @@ try:
 		for tag in article.children:
 			if tag.name == "p":
 				# p tag 다음에 figure 태그가 있으면 이미지의 alt 태그로 처리함
-				sec_tag = tag.find('figure')
-				if sec_tag and sec_tag.get('class') == ['imageblock', 'alignCenter']:
+				if (sec_tag := tag.find('figure')) and sec_tag.get('class') == ['imageblock', 'alignCenter']:
 					print("P태그 내부의 figure 찾음")
-					sec_tag = sec_tag.find('img')
-					alt_text = image.get('alt', '')
+					img_tag = sec_tag.find('img')
+					alt_text = img_tag.get('alt', '')
+					contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(img_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
+					img_tag_count = img_tag_count + 1
+				elif (sec_tag := tag.find('img')):
+					print("P태그 내부의 img tag 찾음")
+					alt_text = sec_tag.get('alt', title.text.strip())
 					contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(sec_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
 					img_tag_count = img_tag_count + 1
-					img_alt = sec_tag.text.strip()
-				else:  # figure 없으면 혹시 imageblock span이 있는지 확인
-					sec_tags = tag.find_all('span')
+				elif (sec_tags := tag.find_all('span')):  # figure 없으면 혹시 imageblock span이 있는지 확인
 					for sec_tag in sec_tags:
 						if sec_tag and sec_tag.get('class') == ['imageblock']:
 							print("P태그 내부의 imageblock span 찾음")
@@ -172,14 +175,14 @@ try:
 				# p 태그 다음에 iframe이 오는 유튜브 등 동영상 삽입한 iframe 찾기
 				sec_tag = tag.find('iframe')
 				if sec_tag:
-					contents = contents + sec_tag.prettiy()
+					contents = contents + sec_tag.prettify()
 				# p 태그 내부에 table 태그가 있는지 찾기
 				sec_tag = tag.find('table')
 				if sec_tag:
 					print("P 태그 내부의 Table 태그를 찾음")
 					contents = contents + "<p>" + tag.prettify() + "</p>\n"
 					sec_tag.decompose()  # table tag 제거
-				# P 태그 내부에 <a> 태그 찾기
+				# P 태그에 바로 따라오는 <a> 태그 찾기
 				sec_tag = tag.find('a')
 				if sec_tag:
 					contents = contents + "<a href='" + sec_tag['href'] + "'>"+ sec_tag.text.strip() + "</a>"
@@ -246,6 +249,12 @@ try:
 			elif tag.name == "table":
 				print("최상위의 Table 태그를 찾음")
 				contents = contents + "<p>" + tag.prettify() + "</p>\n"
+			elif tag.name == "blockquote":
+				block_tags = tag.find_all('p')
+				contents = contents + "<div style='border: 1px solid; border-radius: 5px; padding: 10px; background-color: #cccccc;'>"
+				for block_tag in block_tags:
+					 contents = contents + "<p>" + block_tag.text.strip() + "</p>\n"
+				contents = contents + "</div>\n"
 			elif tag.name == "font":
 				contents = contents + "<p>" + tag.text.strip() + "</p>\n"
 			elif isinstance(tag, str):  # 텍스트 노드인 경우
@@ -256,9 +265,9 @@ try:
 
 		# 포스트의 제목 등과 컨텐츠를 파일에 작성
 		with open(wfilename, "w") as file:
-			file.write("포스트 제목     : " + title.text.strip() + "\n")
-			file.write("포스트 작성일자 : " + wdate.text.strip() + "\n")
+			file.write("포스트 제목     : \n" + title.text.strip() + "   /" + str(index) + "\n")
 			file.write("카테고리        : " + category.text.strip() + "\n")
+			file.write("포스트 작성일자 : " + wdate.text.strip() + "\n")
 			file.write('워드프레스 Slug : /' + str(index) + "\n")
 			file.write("-------------\n")
 			file.write("다운로드 받은 이미지 개수 : " + str(img_file_count) + "\n")
