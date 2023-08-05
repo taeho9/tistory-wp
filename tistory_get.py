@@ -68,18 +68,21 @@ try:
 			print("◆ tt_article_useless_p_margin Class의 DIV 태그를 찾았습니다.")
 		elif(article := page.find('div', class_='contents_style')):
 			print("◆ contents_style class의 DIV 태그를 찾았습니다.")
+		elif(article := page.find('div', class_=['tt_article_useless_p_margin','contents_style'])):
+			print ("◆ 두 DIV 클래스를 모두 갖는 DIV 태그를 찾았습니다.")
 		else:
 			print("◆◆◆ Post의 컨텐츠를 담고 있는 DIV 태그를 찾을 수 없습니다. - Contents Div tag Not Found ◆◆◆")
+			sys.exit(0)
 
 		# Article에서 java 스크립트 태그 선택 및 제거
-		script_tags = article.find_all('script')
-		for script_tag in script_tags:
-			script_tag.decompose()
+		if (script_tags := article.find_all('script')):
+			for script_tag in script_tags:
+				script_tag.decompose()
 
 		# Article에서 adsense 제거
-		script_tags = article.find_all('div', id='AdsenseM1')
-		for script_tag in script_tags:
-			script_tag.decompose()
+		if (script_tags := article.find_all('div', id='AdsenseM1')):
+			for script_tag in script_tags:
+				script_tag.decompose()
 
 		# P 태그에서 data-ke-size 제거
 		p_tags = article.find_all('p')
@@ -126,7 +129,7 @@ try:
 			with open(img_path.replace("?", "_"), 'wb') as img_file:
 				img_file.write(img_response.content)
 				img_file_count = img_file_count + 1     # 이미지 다운로드에 성공하면 카운터 1 증가
-				print(f"- 이미지 다운로드 완료: {fname}")
+				#print(f"- 이미지 다운로드 완료: {fname}")
 			
 			# img 태그에서 src attribute의 값을 변경
 			#img_tag['src'] = img_dir + '/' + fname
@@ -150,32 +153,36 @@ try:
 		for tag in article.children:
 			if tag.name == "p":
 				# p tag 다음에 figure 태그가 있으면 이미지의 alt 태그로 처리함
-				if (sec_tag := tag.find('figure')) and sec_tag.get('class') == ['imageblock', 'alignCenter']:
-					print("- P태그 내부의 figure 찾음")
-					img_tag = sec_tag.find('img')
-					alt_text = img_tag.get('alt', '')
-					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(img_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
-					contents = contents + "<img src='" + img_tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
-					img_tag_count = img_tag_count + 1
-				elif (sec_tag := tag.find('img')):
-					print("- P태그 내부의 img tag 찾음")
-					alt_text = sec_tag.get('alt', title.text.strip())
-					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(sec_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
-					contents = contents + "<img src='" + sec_tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
-					img_tag_count = img_tag_count + 1
+				if sec_tags := tag.find_all('figure'):
+					for sec_tag in (sec_tags):
+						# print("- P태그 내부의 figure 찾음")
+						img_tag = sec_tag.find('img')
+						alt_text = img_tag.get('alt', '')
+						#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(img_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
+						contents = contents + "<figure style='text-align: center;'>\n<img src='" + img_tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+						if(figure_tag := sec_tag.find('figcaption')):
+							caption = figure_tag.text.strip()
+							figure_tag.decompose()
+						else:
+							caption = ""
+						contents = contents + "<figcaption>" + caption + "</figcaption>\n</figure>\n"
+						img_tag_count = img_tag_count + 1
 				elif (sec_tags := tag.find_all('span')):  # figure 없으면 혹시 imageblock span이 있는지 확인
 					for sec_tag in sec_tags:
 						if sec_tag and sec_tag.get('class') == ['imageblock']:
-							print("- P태그 내부의 imageblock span 찾음")
+							#print("- P태그 내부의 imageblock span 찾음")
 							image = sec_tag.find('img')
 							alt_text = image.get('alt', '')
 							#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(image['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
-							contents = contents + "<img src='" + image['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+							contents = contents + "<figure style='text-align: center;'>\n<img src='" + image['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+							contents = contents + "<figcaption>" + sec_tag.text.strip() + "</figcaption>\n</figure>\n"
+							if sec_tag:
+								sec_tag.clear()
 							img_tag_count = img_tag_count + 1
 						else: # imageblock span이 없으면 imageblock div 태그가 있는지 확인
 							sec_tag = tag.find('div')
 							if sec_tag and (sec_tag.get('class') == ['imageblock','center'] or sec_tag.get('class') == ['imageblock']):
-								print("- P태그 내부의 imageblock center 또는 imageblock div 찾음")
+								#print("- P태그 내부의 imageblock center 또는 imageblock div 찾음")
 								image = sec_tag.find('img')
 								alt_text = image.get('alt', '')
 								#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(image['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
@@ -183,68 +190,96 @@ try:
 								img_tag_count = img_tag_count + 1
 							else:
 								img_alt = ""
-							# 이미지 블록 찾기 끝
+					# 이미지 블록 찾기 끝
+				elif (sec_tag := tag.find('img')):
+					#print("- P태그 내부의 img tag 찾음")
+					alt_text = sec_tag.get('alt', title.text.strip())
+					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(sec_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
+					contents = contents + "<img src='" + sec_tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					img_tag_count = img_tag_count + 1
 				# p 태그 다음에 iframe이 오는 유튜브 등 동영상 삽입한 iframe 찾기
 				sec_tag = tag.find('iframe')
 				if sec_tag:
-					contents = contents + sec_tag.prettify()
+					contents = contents +"<center>" + sec_tag.prettify() + "</center>"
 				# p 태그 내부에 table 태그가 있는지 찾기
 				sec_tag = tag.find('table')
 				if sec_tag:
-					print("- P 태그 내부의 Table 태그를 찾음")
+					#print("- P 태그 내부의 Table 태그를 찾음")
 					contents = contents + "<p>" + sec_tag.prettify() + "</p>\n"
 					sec_tag.decompose()  # table tag 제거
 				# P 태그에 바로 따라오는 <a> 태그 찾기
-				sec_tag = tag.find('a')
-				if sec_tag:
+				if ( sec_tag:= tag.find('a')):
 					contents = contents + "<a href='" + sec_tag['href'] + "'>"+ sec_tag.text.strip() + "</a>"
 				# P 태그 내의 남아 있는 텍스트 추출하여 뒤에 추가
 				contents = contents + "<p>" + tag.text.strip() + "</p>\n"
 			elif tag.name == 'a':
 				contents = contents + "<a href='" + tag['href'] + "'>" + tag.text.strip() + "</a>"
+				tag.decompose()
 			elif tag.name == 'span':
 				if tag.get('class') == ['imageblock']:
-					print("* P태그 없는 imageblock span 찾음")
+					#print("* P태그 없는 imageblock span 찾음")
 					image = tag.find('img')
 					alt_text = image.get('alt', '')
 					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(image['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
-					contents = contents + "<img src='" + image['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					contents = contents + "<figure style='text-align: center;'>\n<img src='" + image['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					contents = contents + "<figcaption>" + tag.text.strip() + "</figcaption>\n</figure>\n"
+					tag.decompose()
 					img_tag_count = img_tag_count + 1
 			elif tag.name == "img":
-				print("# 최상위의 img 태그 찾음")
+				#print("# 최상위의 img 태그 찾음")
 				# 파일명에 ?가 있을경우 경우에 따라 파일저장 시 _로 대체되기 때문에 처리함. 앞에서 이미지파일 저장시에도 파일명에 ?가 있으면 _로 대체하여 저장함
 				#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(tag['src'].replace("?", "_")) + '" alt="' + img_alt + '">\n'
 				contents = contents + "<img src='" + tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
 				img_tag_count = img_tag_count + 1
 			elif tag.name == "figure":
 				if (img_tag := tag.find('img')):
-					print("# 최상위의 Figure 태그 내부의 img 태그 찾음")
+					#print("# 최상위의 Figure 태그 내부의 img 태그 찾음")
 					alt_text = img_tag.get('alt', '')
 					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(img_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
-					contents = contents + "<img src='" + img_tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					contents = contents + "<figure style='text-align: center;'>\n<img src='" + img_tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					if(figure_tag := sec_tag.find('figcaption')):
+						caption = figure_tag.text.strip()
+						figure_tag.decompose()
+					else:
+						caption = ""
+					contents = contents + "<figcaption>" + caption + "</figcaption>\n</figure>\n"
 					img_tag_count = img_tag_count + 1
-				else:
-					print("# 최상위의 figure 태그를 찾았으나 img 태그가 없습니다.")
+				#else:
+					#print("# 최상위의 figure 태그를 찾았으나 img 태그가 없습니다.")
 			elif tag.name == "strong":
 				contents = contents + "<p>" + tag.text.strip() + "</p>\n" 
 			elif tag.name == "div":
 				if tag.get('class') ==  ['imageblock', 'center'] or tag.get('class') == ['imageblock']:
-						print("# 최상위의 div 태그 내부에서 imageblock center 찾음")
-						image = tag.find('img')
-						alt_text = image.get('alt', '')
-						#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(image['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n' 
-						contents = contents + "<img src='" + image['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
-						img_tag_count = img_tag_count + 1
+					#print("# 최상위의 div 태그 내부에서 imageblock center 찾음")
+					image = tag.find('img')
+					alt_text = image.get('alt', '')
+					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(image['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n' 
+					contents = contents + "<img src='" + image['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					tag.decompose()
+					img_tag_count = img_tag_count + 1
 				elif tag.get('class') == ['txc-textbox']:
-					print("# 최상위 div 태그 내부에서 텍스트 박스 속성을 찾음")
+					#print("# 최상위 div 태그 내부에서 텍스트 박스 속성을 찾음")
 					tag['style'] = "border-style: dashed; border-width: 1px; border-color: rgb(121, 165, 228); background-color: rgb(219, 232, 251); padding: 10px;"
 					contents = contents + tag.prettify() 
 				elif ((sec_tag := tag.find('span')) and sec_tag.get('class') == ['imageblock']):
-					print("# 최상위 div 태그 내부의 span 태그 내부에서 imageblock 찾음")
+					#print("# 최상위 div 태그 내부의 span 태그 내부에서 imageblock 찾음")
 					image = tag.find('img')
 					alt_text = image.get('alt', '')
 					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(image['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
 					contents = contents + "<img src='" + image['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					img_tag_count = img_tag_count + 1
+				elif (sec_tag := tag.find('figure')) and sec_tag.get('class') == ['imageblock', 'alignCenter']:
+					#print("- DIV 태그 내부의 figure 찾음")
+					img_tag = sec_tag.find('img')
+					alt_text = img_tag.get('alt', '')
+					#contents = contents + "<img src=" + '"/tistory/' + str(index) + "/" + os.path.basename(img_tag['src'].replace("?", "_")) + '" alt="' + alt_text + '">\n'
+					contents = contents + "<figure style='text-align: center;'>\n<img src='" + img_tag['src'].replace("?", "_") + "' alt='" + alt_text + "'>\n"
+					if(figure_tag := sec_tag.find('figcaption')):
+						caption = figure_tag.text.strip()
+						figure_tag.decompose()
+					else:
+						caption = ""
+					contents = contents + "<figcaption>" + caption + "</figcaption>\n</figure>\n"
 					img_tag_count = img_tag_count + 1
 				else:
 					contents = contents + "<p>" + tag.text.strip() + "</p>\n" 
@@ -259,13 +294,13 @@ try:
 			elif tag.name == "pre":
 				sec_tag = tag.find('code') 
 				if sec_tag: # pre와 code가 연속으로 오는 코드 태그이면 pre 태그를 회색 박스로 표시하도록 처리
-					print("# 최상위 Pre 태그의 code 태그를 찾아 style을 변경함")
+					#print("# 최상위 Pre 태그의 code 태그를 찾아 style을 변경함")
 					contents = contents + '<pre style="border:1px;solid:#ccc;padding:10px;background-color:#d9d9d9;"><code>' + tag.text.strip() + "</code></pre>\n"
 				else:
-					print("# 최상위 Pre 태그를 찾음")
+					#print("# 최상위 Pre 태그를 찾음")
 					contents = contents + "<pre>" + tag.text.strip() + "</pre>"
 			elif tag.name == "ul":  # list 태그(ul) 처리
-				print("# 최상위 UL 태그를 찾음")
+				#print("# 최상위 UL 태그를 찾음")
 				contents = contents + "<ul>\n"
 				li_tags = tag.find_all('li')
 				for li_tag in li_tags:
@@ -278,14 +313,20 @@ try:
 				# print("# 최상위 Span 태그를 찾음")
 				contents = contents + "<p>" + tag.text.strip() + "</p>\n"
 			elif tag.name == "table":
-				print("# 최상위의 Table 태그를 찾음")
+				print("# 최상위의 Table 태그를 찾음. <주의!> 내부에 IMG 태그가 있어도 생성한 IMG 태그의 카운트가 증가하지 않습니다.")
 				contents = contents + "<p>" + tag.prettify() + "</p>\n"
 			elif tag.name == "blockquote":
-				print("# 최상위의 blockquote 태그를 찾아 Div 태그로 변환함")  # 블록의 div 태그 스타일을 바꾸려면 아래 라인의 style 속성을 변경하면 됨
-				block_tags = tag.find_all('p')
-				contents = contents + "<div style='border: 1px solid; border-radius: 5px; padding: 10px; background-color: #cccccc;'>"
-				for block_tag in block_tags:
-					 contents = contents + "<p>" + block_tag.text.strip() + "</p>\n"
+				# blockquote가 발견되면 일단 div 태그로 전환
+				contents = contents + "<div style='border: 1px solid; border-radius: 5px; padding: 10px; background-color: #eeeeee;'>"
+				if (sec_tag := tag.find('a')):   # 두번째 태그가 <a> tag면 처리함
+					contents = contents + "<a href='" + sec_tag['href'] + "'>"+ sec_tag.text.strip() + "</a>"
+				else: # 아니면 <p> 태그를 찾아 처리함
+					if (block_tags := tag.find_all('p')):
+						for block_tag in block_tags:
+							contents = contents + "<p>" + block_tag.text.strip() + "</p>\n"
+					else:
+						contents = contents + tag.text.strip()
+				#print("# 최상위의 blockquote 태그를 찾아 Div 태그로 변환함")  # 블록의 div 태그 스타일을 바꾸려면 아래 라인의 style 속성을 변경하면 됨
 				contents = contents + "</div>\n"
 			elif tag.name == "font":
 				# print("# 최상위 Font 태그를 찾음")
