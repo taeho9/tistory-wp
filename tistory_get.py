@@ -17,6 +17,7 @@ if arg_ct != 2:
 	print("\n사용법 : $ python tistory_get.py [시작포스트번호]  [마지막끝포스트번호]\n\n") 
 	sys.exit()
 
+# 워드프레스로 이사를 위해 백업할 티스토리 블로그 주소
 base_url = 'cybercafe.tistory.com'
 
 error_count = 0
